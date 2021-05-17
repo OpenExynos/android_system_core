@@ -176,3 +176,13 @@ int ion_sync_fd(int fd, int handle_fd)
     };
     return ion_ioctl(fd, ION_IOC_SYNC, &data);
 }
+
+int ion_sync_fd_partial(int fd, int handle_fd, off_t offset, size_t len)
+{
+    struct ion_fd_partial_data data = {
+        .fd = handle_fd,
+        .offset = offset,
+        .len = len,
+    };
+    return ion_ioctl(fd, ION_IOC_SYNC_PARTIAL, &data);
+}

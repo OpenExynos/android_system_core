@@ -752,7 +752,13 @@ typedef enum android_dataspace {
      *       The point cloud will be represented with the android_depth_points
      *       structure.
      */
-    HAL_DATASPACE_DEPTH = 0x1000
+    HAL_DATASPACE_DEPTH = 0x1000,
+
+    /* Added for EXYNOS chipset */
+    HAL_DATASPACE_BT2020 = 0x2000,
+    HAL_DATASPACE_BT2020_FULL = 0x2001,
+    HAL_DATASPACE_DCI_P3 = 0x2002,
+    HAL_DATASPACE_DCI_P3_FULL = 0x2003
 
 } android_dataspace_t;
 

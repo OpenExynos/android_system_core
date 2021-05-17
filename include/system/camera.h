@@ -23,6 +23,7 @@
 #include <cutils/native_handle.h>
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
+#include <utils/Timers.h>
 
 __BEGIN_DECLS
 
@@ -228,6 +229,10 @@ enum {
     CAMERA_FACE_DETECTION_SW = 1
 };
 
+enum {
+    EXT_DATA_EXIF_DEBUG_INFO = 0, /* exif debug info for NV21 format */
+};
+
 /**
  * The information of a face from camera face detection.
  */
@@ -279,6 +284,38 @@ typedef struct camera_face {
 } camera_face_t;
 
 /**
+ * Structure for PAF data
+ */
+typedef struct camera_depth_data
+{
+    uint32_t width;
+    uint32_t height;
+    int format;
+    void* depth_data;
+} camera_depth_data_t;
+
+/**
+ * Structure for lens information for OCR mode.
+ */
+typedef struct camera_current_set
+{
+    unsigned int exposure_time;
+    short exposure_value;
+    short iso;
+    short lens_position_min;
+    short lens_position_max;
+    short lens_position_current;
+    short driver_resolution;
+} camera_current_set_t;
+
+typedef struct camera_ext_data
+{
+    uint32_t size;
+    unsigned short usage;
+    void *data;
+} camera_ext_data_t;
+
+/**
  * The metadata of the frame data.
  */
 typedef struct camera_frame_metadata {
@@ -291,6 +328,25 @@ typedef struct camera_frame_metadata {
      * An array of the detected faces. The length is number_of_faces.
      */
     camera_face_t *faces;
+
+    /**
+    * the timestamp for previewframe(VR mode)
+    */
+    nsecs_t timestamp;
+
+    /**
+     * Value for lens information for OCR mode.
+     */
+    camera_current_set_t current_set_data;
+
+    /**
+    * structure for receiving depth map data
+    */
+    camera_depth_data_t  depth_data;
+    /**
+    * structure for receiving extra data
+    */
+    camera_ext_data_t ext_data;
 } camera_frame_metadata_t;
 
 __END_DECLS

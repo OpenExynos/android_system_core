@@ -63,6 +63,102 @@ struct debugger_request_t {
   int32_t original_si_code;
 };
 
+int exynos_bugreport() {
+    int ret = 0;
+    time_t now;
+    char date[80];
+    char file[128] = {0, };
+    int dst_fd = -1;
+    // Start the dumpstate service.
+    property_set("ctl.start", "dumpstate");
+
+    // Socket will not be available until service starts.
+    int s;
+    for (int i = 0; i < 20; i++) {
+        s = socket_local_client("dumpstate", ANDROID_SOCKET_NAMESPACE_RESERVED,
+                SOCK_STREAM);
+        if (s >= 0)
+            break;
+        // Try again in 1 second.
+        sleep(1);
+    }
+
+    if (s == -1) {
+        ALOGE("Failed to connect to dumpstate service: %s\n", strerror(errno));
+        ret = 1;
+        goto bugreport_end;
+    }
+
+    strcpy(file,  "/data/bugreport" );
+    strftime(date, sizeof(date), "-%Y-%m-%d_%H-%M-%S", localtime(&now));
+    strlcat(file, date, 128);
+    strlcat(file, ".txt", 128);
+    dst_fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0640);
+    if (dst_fd < 0) {
+        ALOGE("Unable to open file: %s\n", file);
+        ret = 1;
+        goto bugreport_end;
+    }
+    // Set a timeout so that if nothing is read in 3 minutes, we'll stop
+    // reading and quit. No timeout in dumpstate is longer than 60 seconds,
+    // so this gives lots of leeway in case of unforeseen time outs.
+    struct timeval tv;
+    tv.tv_sec = 3 * 60;
+    tv.tv_usec = 0;
+    if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
+        ALOGE("WARNING: Cannot set socket timeout: %s\n", strerror(errno));
+    }
+
+    while (1) {
+        char buffer[65536];
+        int bytes_read = TEMP_FAILURE_RETRY(read(s, buffer, sizeof(buffer)));
+        if (bytes_read == 0) {
+            break;
+        } else if (bytes_read == -1) {
+            // EAGAIN really means time out, so change the errno.
+            if (errno == EAGAIN) {
+                errno = ETIMEDOUT;
+            }
+            // ALOGE("\nBugreport read terminated abnormally (%s).\n", strerror(errno));
+            break;
+        }
+
+        int bytes_written = write(dst_fd, buffer, bytes_read);
+        if (bytes_written == -1) {
+                ALOGE("Failed to write data to %s: bytes = %d: err = %s",
+                        file, bytes_read, strerror(errno));
+                ret = 1;
+                goto bugreport_end;
+        }
+    }
+
+bugreport_end:
+    if (s >= 0)
+        close(s);
+
+    if (dst_fd >= 0) {
+        fsync(dst_fd);
+        close(dst_fd);
+    }
+
+    return ret;
+}
+
+static char *get_pname_with_pid(char *pname, unsigned pid)
+{
+    FILE *fp;
+    char *result = NULL;
+    char path[512] = {0};
+
+    sprintf(path, "/proc/%d/cmdline", pid);
+    fp = fopen(path, "r");
+    if(fp) {
+        result = fgets(pname, 256, fp);
+        fclose(fp);
+    }
+    return result;
+}
+
 static void wait_for_user_action(const debugger_request_t &request) {
   // Find out the name of the process that crashed.
   char path[64];
@@ -346,6 +442,10 @@ static void handle_request(int fd) {
   ALOGV("handle_request(%d)\n", fd);
 
   debugger_request_t request;
+  char *process_name = NULL;
+  char data[1024];
+
+  bool do_sysrq_trigger = false;
   memset(&request, 0, sizeof(request));
   int status = read_request(fd, &request);
   if (!status) {
@@ -448,6 +548,7 @@ static void handle_request(int fd) {
                                                  signal, request.original_si_code,
                                                  request.abort_msg_address, !attach_gdb,
                                                  &detach_failed, &total_sleep_time_usec);
+              do_sysrq_trigger = true;
               break;
 
             default:
@@ -460,11 +561,35 @@ static void handle_request(int fd) {
         if (request.action == DEBUGGER_ACTION_DUMP_TOMBSTONE) {
           if (tombstone_path) {
             write(fd, tombstone_path, strlen(tombstone_path));
+            fsync(fd);
           }
           close(fd);
           fd = -1;
         }
         free(tombstone_path);
+        if (do_sysrq_trigger) {
+            char buff[PROPERTY_VALUE_MAX];
+            property_get("debug.slsi_platform", buff, NULL);
+            if (!strcmp(buff, "true") || !strcmp(buff, "1")) {
+                process_name = get_pname_with_pid(data, request.pid);
+                if ((strcmp(process_name,"system_server")== 0) ||
+                        (strcmp(process_name,"/system/bin/surfaceflinger")== 0) ||
+                        (strcmp(process_name,"zygote64") == 0) ||
+                        (strcmp(process_name,"zygote") == 0) ||
+                        (strcmp(process_name,"/system/bin/mediaserver")== 0)) {
+                    int fd_sysrq;
+                    exynos_bugreport();
+                    fd_sysrq = open("/proc/sysrq-trigger", O_WRONLY);
+                    if (fd_sysrq >= 0) {
+                        ALOGE("Sending Kernel Panic from sysrq");
+                        write(fd_sysrq, "c", 1);
+                        close(fd_sysrq);
+                    } else {
+                        ALOGE("Failed to open /proc/sysrq-trigger");
+                    }
+                }
+            }
+        }
       }
 
       if (!tid_unresponsive) {

@@ -26,7 +26,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#ifdef __BIONIC__
 #include <android/set_abort_message.h>
+#endif
 
 #include <log/log.h>
 #include <log/logd.h>
@@ -106,7 +108,9 @@ static int __write_to_log_kernel(log_id_t log_id, struct iovec *vec, size_t nr)
 
 static int __write_to_log_init(log_id_t log_id, struct iovec *vec, size_t nr)
 {
+#if !defined(_WIN32)
     pthread_mutex_lock(&log_init_lock);
+#endif
 
     if (write_to_log == __write_to_log_init) {
         log_fds[LOG_ID_MAIN] = log_open("/dev/"LOGGER_LOG_MAIN, O_WRONLY);
@@ -132,7 +136,9 @@ static int __write_to_log_init(log_id_t log_id, struct iovec *vec, size_t nr)
         }
     }
 
+#if !defined(_WIN32)
     pthread_mutex_unlock(&log_init_lock);
+#endif
 
     return write_to_log(log_id, vec, nr);
 }
@@ -167,9 +173,11 @@ int __android_log_buf_write(int bufID, int prio, const char *tag, const char *ms
             tag = tmp_tag;
     }
 
+#if __BIONIC__
     if (prio == ANDROID_LOG_FATAL) {
         android_set_abort_message(msg);
     }
+#endif
 
     vec[0].iov_base   = (unsigned char *) &prio;
     vec[0].iov_len    = 1;

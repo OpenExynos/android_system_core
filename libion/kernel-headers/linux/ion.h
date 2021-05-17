@@ -42,6 +42,11 @@ enum ion_heap_type {
 #define ION_FLAG_CACHED 1
 /* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
 #define ION_FLAG_CACHED_NEEDS_SYNC 2
+#define ION_FLAG_PRESERVE_KMAP 4
+#define ION_FLAG_NOZEROED 8
+#define ION_FLAG_PROTECTED 16
+/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
+#define ION_FLAG_SYNC_FORCE 32
 struct ion_allocation_data {
  size_t len;
  size_t align;
@@ -56,13 +61,33 @@ struct ion_fd_data {
  int fd;
 };
 /* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
+struct ion_fd_partial_data {
+ ion_user_handle_t handle;
+ int fd;
+ off_t offset;
+/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
+ size_t len;
+};
 struct ion_handle_data {
  ion_user_handle_t handle;
+/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
 };
 struct ion_custom_data {
-/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
  unsigned int cmd;
  unsigned long arg;
+/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
+};
+struct ion_preload_object {
+ size_t len;
+ unsigned int count;
+/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
+};
+struct ion_preload_data {
+ unsigned int heap_id_mask;
+ unsigned int flags;
+/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
+ unsigned int count;
+ struct ion_preload_object *obj;
 };
 #define ION_IOC_MAGIC 'I'
 /* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
@@ -73,6 +98,9 @@ struct ion_custom_data {
 /* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
 #define ION_IOC_IMPORT _IOWR(ION_IOC_MAGIC, 5, struct ion_fd_data)
 #define ION_IOC_SYNC _IOWR(ION_IOC_MAGIC, 7, struct ion_fd_data)
+#define ION_IOC_SYNC_PARTIAL _IOWR(ION_IOC_MAGIC, 9, struct ion_fd_partial_data)
+#define ION_IOC_PRELOAD_ALLOC _IOW(ION_IOC_MAGIC, 8, struct ion_preload_data)
+/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
 #define ION_IOC_CUSTOM _IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
 #endif
 /* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
